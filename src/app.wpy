@@ -1,0 +1,51 @@
+<!--
+ * @Author: 289608944@qq.com
+ * @Date: 2020-03-31 15:27:09
+ * @LastEditors: 289608944@qq.com
+ * @LastEditTime: 2020-03-31 15:49:17
+ * @Description: In User Settings Edit
+ -->
+<style lang="scss">
+page {
+  width: 100%;
+  height: 100%;
+}
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+</style>
+
+<script>
+import wepy from 'wepy';
+import 'wepy-async-function';
+
+export default class extends wepy.app {
+  config = {
+    pages: [
+      'pages/index/index',
+      'pages/dooya/index'
+    ],
+    window: {
+      backgroundTextStyle: 'light',
+      navigationBarBackgroundColor: '#19a0f1', 
+      navigationBarTitleText: '涂鸦工具',
+      navigationBarTextStyle: 'white'
+    }
+  };
+
+  globalData = {
+    userInfo: null
+  };
+
+  constructor() {
+    super();
+    this.use('requestfix');
+  }
+  onLaunch() {}
+}
+</script>

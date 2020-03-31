@@ -1,0 +1,30 @@
+@import '../../style/theme.scss';
+
+.inner-box {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 400rpx;
+  position: absolute;
+  top: 30%;
+  .inner-box__btn {
+    background-color: $theme;
+    width:250rpx;
+    height:250rpx;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    image {
+      width:100rpx;
+      height:100rpx;
+    }
+    text {
+      font-size: 32rpx;
+      color: #fff;
+    }
+  }
+}

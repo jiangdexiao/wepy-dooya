@@ -1,0 +1,15 @@
+{
+	"description": "a dooya tool",
+	"setting": {
+		"urlCheck": true,
+		"es6": false,
+		"postcss": false,
+		"minified": false,
+		"newFeature": true
+	},
+	"compileType": "miniprogram",
+	"appid": "wx239c8548251fca14",
+	"projectname": "wepy-dooya",
+	"miniprogramRoot": "./dist",
+	"condition": {}
+}

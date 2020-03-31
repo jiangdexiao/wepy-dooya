@@ -1,0 +1,495 @@
+<template>
+  <view class="modify-page">
+    <!-- 隐藏canvas 保存图片用 -->
+    <canvas canvas-id="tempCanvas" disable-scroll="true" style="width:{{tempCanvasWidth}}px; height:{{tempCanvasHeight}}px; position:absolute;left:-999999px" ></canvas>
+
+    <!-- 主页面 -->
+    <view class="imageView" wx:if="{{page==='mainPage'}}" style="height:{{imgViewHeight}}px">
+      <view class="noImageBox" wx:if="{{imageNotChoosed}}" bindtap='chooseOneImage'><text>点击选择图片</text></view>
+      <image src="{{tempImageSrc}}" style="width:{{imgWidth}}px;height:{{imgHeight}}px;top:{{imgTop}}px;left:{{imgLeft}}px" disable-scroll="true" mode='scaleToFill' ></image>
+    </view>
+    <!-- 主页面-底部 -->
+    <view class="toolbar-bottom" wx:if="{{page==='mainPage'}}">
+      <view @tap='toDoodlePage' class="tab-item"><text class="icon-pen"></text><text class="text">涂鸦</text></view>
+      <view @tap='previewImg' class="tab-item" wx:if="{{!imageNotChoosed}}"><text class="icon-preview" ></text><text class="text">预览</text></view>
+      <view @tap='uploadFile' class="tab-item" wx:if="{{!imageNotChoosed}}"><text class="icon-upload" ></text><text class="text">上传</text></view>
+      <view @tap='chooseOneImage' class="tab-item" wx:if="{{!imageNotChoosed}}"><text class="icon-camera" ></text><text class="text">重新拍照</text></view>
+    </view>
+    <!-- 涂鸦页面 -->
+    <view class="imageView" wx:if="{{page==='doodlePage'}}" style="height:{{imgViewHeight}}px">
+      <image src="{{tempImageSrc}}" style="width:{{imgWidth}}px;height:{{imgHeight}}px;top:{{imgTop}}px;left:{{imgLeft}}px;display:{{!doodled?'block':'none'}}" disable-scroll="true" bindtouchstart="uploadScaleStart" bindtouchmove="uploadScaleMove" bindtouchend="uploadScaleEnd"></image>
+      <canvas 
+        class="myCanvas" 
+        canvas-id="myCanvas" 
+        disable-scroll="true" 
+        bindtouchstart="doodleStart" 
+        bindtouchmove="doodleMove" 
+        bindtouchend="doodleEnd"
+        bindlongtap="longtap"
+        style="width:{{imgWidth}}px; height:{{imgHeight}}px;top:{{imgTop}}px;left:{{doodled?imgLeft:-9999}}px;position:absolute;"></canvas>
+    </view>
+    <cover-view wx:if="{{page==='doodlePage'}}" class="tool-subbox">
+      <cover-image @tap="goBack" src='../../images/btn-cexiao.png'></cover-image>
+    </cover-view>
+    <view wx:if="{{page==='doodlePage'}}">
+      <!-- 涂鸦页面-底部 -->
+      <view class="toolbar-doodled">
+        <view class="tool-box">
+          <view wx:if="{{isChooseWidth}}" class="toolbar-width">
+            <view class="slider-box"><slider bindchange="widthSliderChange" min="1" max="15" value="{{lineWidth}}" show-value></slider></view>
+          </view>
+          <view wx:if="{{isChooseColor}}" class="color-box">
+            <view 
+              wx:for="{{allColor}}"
+              wx:key="index" 
+              class="color-point {{lineColor==item?'checked':''}}" 
+              data-selected="{{item}}" 
+              style="background:{{item}};" 
+              bindtap='lineColorChange'>
+            </view>
+          </view>
+        </view>
+        <view class='button-box'>
+          <view bindtap='doodleCancel' class="btn-close" > 取消</view>
+          <view bindtap='chooseLineWidth'  class="btn-width {{isChooseWidth?'checked':''}}">宽度</view>
+          <view bindtap='chooseLineColor' class="btn-color {{isChooseColor?'checked':''}}">颜色</view>
+          <view bindtap='doodleToMainPage' class="btn-save"> 完成</view>
+        </view>
+      </view>
+    </view>
+    <!-- 裁剪页面 -->
+    <view class="imageView" wx:if="{{page==='cropPage'}}" style="height:{{imgViewHeight}}px">
+      <image src="{{tempImageSrc}}" style="width:{{imgWidth}}px;height:{{imgHeight}}px;top:{{imgTop}}px;left:{{imgLeft}}px" disable-scroll="true" bindtouchstart="uploadScaleStart" bindtouchmove="uploadScaleMove" bindtouchend="uploadScaleEnd"></image>
+      <view wx:if="{{isCroper}}" class="cropper-wraper">
+        <view class="corpper-view-box" bindtouchstart="croperStart" bindtouchmove="croperMove" style="width:{{cutW}}px;height:{{cutH}}px;left:{{cutL}}px;top:{{cutT}}px">
+          <view class="cropper-dashed-h"></view>
+          <view class="cropper-dashed-v"></view>
+          <view class="cropper-line-t" data-drag="top"></view>
+          <view class="cropper-line-r" data-drag="right"></view>
+          <view class="cropper-line-b" data-drag="bottom"></view>
+          <view class="cropper-line-l" data-drag="left"></view>
+          <view class="cropper-point point-tr" data-drag="topTight"></view>
+          <view class="cropper-point point-rb" data-drag="rightBottom" catchtouchstart="dragPointStart" catchtouchmove="dragPointMove"></view>
+          <view class="cropper-point point-bl" data-drag="bottomLeft"></view>
+          <view class="cropper-point point-lt" data-drag="leftTop"></view>
+        </view>
+      </view>
+    </view>
+    <!-- 裁剪页面-底部 -->
+    <view class="toolbar-bottom" wx:if="{{page==='cropPage'}}">
+      <view bindtap='toMainPage'><text class="icon-back"></text><text class="text">保存</text></view>
+      <view bindtap='openCroper'><text class="icon-cutbox"></text><text class="text">裁剪框</text></view>
+    </view>
+    <!-- 裁剪和添加文字时调出的确认条 -->
+    <view class="confirm-bar1" wx:if="{{isCroper||allText.isTextActive}}">
+      <text class="icon-cross" bindtap="{{isCroper?'cancelCrop':'cancelAddText'}}"></text>
+    </view>
+    <view class="confirm-bar2" wx:if="{{isCroper||allText.isTextActive}}">
+      <text class="icon-checkmark" bindtap="{{isCroper?'competeCrop':'competeAddText'}}"></text>
+    </view>
+  </view> 
+</template>
+
+
+<script>
+import wepy from 'wepy';
+import debounce from '../../utils/debounce.js';
+import { loadImgOnCanvas,loadImgOnImage,chooseImage,saveDoodle,throttleFn,saveImgUseTempCanvas,upload } from './util'
+
+let doodleStartX,doodleStartY
+const minScale = 1, maxScale = 2
+let dooledArray = [] //涂鸦图片栈
+export default class Dooya extends wepy.page {
+  config = {
+
+  }
+
+  data = {
+    tempCanvasWidth:0,
+    tempCanvasHeight:0,
+    imgViewHeight:0,
+    page:'mainPage',
+    imageNotChoosed:true,
+    tempImageSrc:'',
+    imgWidth:0,
+    imgHeight:0,
+    imgTop:0,
+    imgLeft:0,
+    // 裁剪框 宽高
+    isCroper:false,
+    cutW: 0,
+    cutH: 0,
+    cutL: 0,
+    cutT: 0,
+    //涂鸦窗口
+    isChooseWidth:false,
+    isChooseColor:false,
+    isEraser:false,
+    lineWidth: 5,
+    lineColor: '#000000',
+    allColor: ['#000000', '#7f7f7f', '#880015', '#ed1c24', '#ff7f27', '#fff200', '#22b14c', '#00a2e8','#ffaec9','#a349a4','#ffffff','#c3c3c3'],
+    //添加文字
+    isChooseFontSize: false,
+    isChooseFontColor: false,
+    isChooseFontPattern: false,
+    allText:{},
+    doodled: false,//是否涂鸦状态
+  }
+
+  /**
+   * 生命周期函数--监听页面加载
+   */
+  onLoad() {
+    var self = this
+    self.device = wx.getSystemInfoSync()
+    self.deviceRatio = self.device.windowWidth / 750
+    self.imgViewHeight = self.device.windowHeight - 180 * self.deviceRatio
+    self.page = 'mainPage'
+    self.lineWidth = wepy.getStorageSync('lineWidth')
+    self.lineColor = wepy.getStorageSync('lineColor')
+    chooseImage(this)
+  }
+
+  methods ={
+    chooseOneImage(){
+      chooseImage(this)
+    },
+    toMainPage(){
+      loadImgOnImage(this)
+      this.page = 'mainPage'
+    },
+    //预览照片
+    previewImg(){
+      wepy.previewImage({
+        urls: [this.tempImageSrc], // 需要预览的图片http链接列表        
+      })
+    },
+    //上传图片
+    uploadFile(){
+      upload(this)
+    },
+    //取消涂鸦
+    doodleCancel(){
+      this.doodled = false 
+      this.tempImageSrc = dooledArray[0]
+      loadImgOnImage(this)
+      this.page = 'mainPage'
+    },
+    /**
+     * 保存涂鸦
+     */
+    doodleToMainPage: debounce(function(){
+      if(this.doodled){
+        this.doodled=false
+        wepy.showLoading({
+          title: '保存涂鸦',
+          mask: true,
+        })
+        saveDoodle(this, loadImgOnImage)
+        this.page = 'mainPage'
+      }else{ 
+        loadImgOnImage(this)
+      }
+      this.page = 'mainPage'
+    },100)
+    ,
+    /**
+     * 选择画笔宽度
+     */
+    chooseLineWidth(){
+      this.isChooseWidth = true
+      this.isChooseColor = false
+      this.isEraser = false
+    },
+    /**
+     * 切换画笔宽度
+     */
+    widthSliderChange(e){
+      this.lineWidth=e.detail.value
+      wepy.setStorageSync('lineWidth',this.lineWidth)
+    },
+    /**
+     * 选择画笔颜色
+     */
+    chooseLineColor(){
+      this.isChooseColor = true
+      this.isChooseWidth = false
+      this.isEraser = false
+    },
+    /**
+     * 切换画笔颜色
+     */
+    lineColorChange(e){
+      this.lineColor = e.target.dataset.selected
+      wepy.setStorageSync('lineColor',this.lineColor)
+      this.doodled = true
+      //把缩放后的图重新绘制到canvas
+      if(this.oldScale > 1){
+        loadImgOnCanvas(this)
+      }
+    },
+    /**
+     * 选择橡皮檫
+     */
+    chooseEraser(){
+      this.isEraser = !this.isEraser
+      this.isChooseWidth = false
+      this.isChooseColor = false
+    },
+    /**
+     * 清除画布
+     */
+    chooseClear(){
+      this.ctx.clearRect(-750 * this.deviceRatio / 2, -this.imgViewHeight / 2, 750 * this.deviceRatio, this.imgViewHeight);
+      this.ctx.draw(true);
+      //显示原图
+      loadImgOnCanvas(this)
+      this.isEraser = false
+    },
+    //开始涂鸦窗口
+    toDoodlePage(){
+      var self = this
+      if(self.tempImageSrc){
+        setTimeout(() => {
+          loadImgOnCanvas(self)
+        }, 200);
+        dooledArray = [self.tempImageSrc]
+        self.isChooseColor = true
+        self.doodled = true
+        self.page = 'doodlePage'
+      }else{
+        wepy.showToast({
+          title:'请选择图片',
+          icon:'none'
+        })
+      }
+    },
+    //测试使用测试模拟双指缩放 切换图片模式
+    longtap(){
+      // console.log('longtap')
+      // this.doodled = false
+      // if(dooledArray.length > 0){
+      //   //得到最后一次绘制的canvas图片
+      //   this.tempImageSrc = dooledArray[dooledArray.length-1]
+      // }
+    },
+    /**
+     * 开始涂鸦
+     */
+    doodleStart(e) {
+      var self = this
+      if(e.touches.length === 1){
+        this.doodled=true
+      }
+      self.lineWidth = self.lineWidth ? self.lineWidth:5
+      self.lineColor = self.lineColor ? self.lineColor : '#000000'
+      // 开始画图，隐藏所有的操作栏
+      // this.isChooseWidth = false
+      // this.isChooseColor = false
+      // this.canvasHeight = self.device.windowHeight - 160 * self.deviceRatio
+      doodleStartX = e.touches[0].x 
+      doodleStartY = e.touches[0].y 
+      
+      // 两指手势触发
+      if (e.touches.length >= 2) {
+        //切换成显示图片
+        this.doodled = false
+        if(dooledArray.length > 0){
+          //得到最后一次绘制的canvas图片
+          self.tempImageSrc = dooledArray[dooledArray.length-1]
+        }
+      }
+    },
+    doodleMove(e) {
+      // 触摸移动，单手指绘制中。。。
+      var self=this
+      const ctx = self.ctx
+      if (this.doodled && e.touches.length == 1) {
+        this.doodled=true
+        ctx.setStrokeStyle(self.lineColor);
+        ctx.setLineWidth(self.lineWidth);
+        ctx.setLineCap('round');
+        ctx.setLineJoin('round');
+        ctx.moveTo(doodleStartX, doodleStartY);
+        ctx.lineTo(e.touches[0].x , e.touches[0].y );
+        ctx.stroke();
+        ctx.draw(true);
+        doodleStartX = e.touches[0].x 
+        doodleStartY = e.touches[0].y 
+      }
+    },
+    doodleEnd(e){
+      let self = this
+      if(this.doodled){
+        wepy.canvasToTempFilePath({
+          x: 0,
+          y: 0,
+          width: self.initScaleWidth,
+          height: self.initScaleHeight,
+          canvasId: 'myCanvas',
+          success: function(res){
+            dooledArray.push(res.tempFilePath)
+            console.log('push dooleImage',dooledArray)
+          }
+        })
+      }else if( !this.doodled && e.touches.length === 2){
+        
+      }
+    },
+    //撤销
+    goBack(){
+      if(dooledArray.length > 1){
+        dooledArray.pop() 
+        loadImgOnCanvas(this,dooledArray[dooledArray.length-1])
+      }
+    },
+    uploadScaleStart(e) { //缩放图片
+      let self = this
+      let xDistance, yDistance
+      let [touch0, touch1] = e.touches
+      //self.touchNum = 0 //初始化，用于控制旋转结束时，旋转动作只执行一次
+
+      //计算第一个触摸点的位置，并参照该点进行缩放
+      self.touchX = touch0.clientX
+      self.touchY = touch0.clientY
+      //每次触摸开始时图片左上角坐标
+      self.imgLeft = self.startX
+      self.imgTop = self.startY
+
+      // 两指手势触发
+      if (e.touches.length >= 2) {
+        self.initLeft = (self.deviceRatio * 750 / 2 - self.imgLeft) / self.oldScale
+        self.initTop = (self.imgViewHeight / 2 - self.imgTop) / self.oldScale
+        //计算两指距离
+        xDistance = touch1.clientX - touch0.clientX
+        yDistance = touch1.clientY - touch0.clientY
+        self.oldDistance = Math.sqrt(xDistance * xDistance + yDistance * yDistance)
+      }
+    },
+    //缩放
+    uploadScaleMove(e) {
+      throttleFn(this, e)
+    },
+
+    uploadScaleEnd(e) {
+      let self = this
+      self.oldScale = self.newScale || self.oldScale
+      self.startX = self.imgLeft || self.startX
+      self.startY = self.imgTop || self.startY
+    },
+    /**
+     * 选择裁剪菜单
+     */
+    toCropPage(){
+      var self=this
+      if(self.tempImageSrc){
+        loadImgOnImage(self)
+        self.page = 'cropPage'
+        self.allText = {}
+      }else{
+        wepy.showToast({
+          title: '请选择图片',
+          icon:'none'
+        })
+      }
+    },
+    /**
+     * 开始裁剪
+     */
+    croperStart(e){
+      this.croperX = e.touches[0].clientX
+      this.croperY = e.touches[0].clientY
+    },
+    /**
+     * 裁剪拖动图片
+     */
+    croperMove(e){
+      var self = this
+      var dragLengthX = (e.touches[0].clientX-self.croperX)
+      var dragLengthY = (e.touches[0].clientY-self.croperY)
+      var minCutL = Math.max(0, self.imgLeft)
+      var minCutT = Math.max(0, self.imgTop)
+      var maxCutL = Math.min(750 * self.deviceRatio - self.cutW, self.imgLeft + self.imgWidth - self.cutW)
+      var maxCutT = Math.min(self.imgViewHeight - self.cutH, self.imgTop + self.imgHeight - self.cutH)
+      var newCutL = self.cutL + dragLengthX
+      var newCutT = self.cutT + dragLengthY
+      if (newCutL < minCutL) newCutL = minCutL
+      if (newCutL > maxCutL) newCutL = maxCutL
+      if (newCutT < minCutT) newCutT = minCutT
+      if (newCutT > maxCutT) newCutT = maxCutT
+      this.cutL = newCutL
+      this.cutT = newCutT
+      self.croperX = e.touches[0].clientX
+      self.croperY = e.touches[0].clientY
+    },
+    //移动裁剪框
+    dragPointStart(e){
+      var self = this
+      self.dragStartX = e.touches[0].clientX
+      self.dragStartY = e.touches[0].clientY
+      self.initDragCutW = self.cutW
+      self.initDragCutH = self.cutH
+    },
+    //拖动缩放裁剪框
+    dragPointMove(e){
+      var self = this
+      var maxDragX = Math.min(750 * self.deviceRatio, self.imgLeft + self.imgWidth)
+      var maxDragY = Math.min(self.imgViewHeight, self.imgTop + self.imgHeight)
+      var dragMoveX = Math.min(e.touches[0].clientX , maxDragX),
+        dragMoveY = Math.min(e.touches[0].clientY, maxDragY);
+      var dragLengthX = dragMoveX - self.dragStartX
+      var dragLengthY = dragMoveY - self.dragStartY
+      if (dragLengthX + self.initDragCutW >= 0 && dragLengthY + self.initDragCutH>=0){
+        self.cutW = self.initDragCutW + dragLengthX
+        self.cutH = self.initDragCutH + dragLengthY
+      } else {
+        return
+      }
+    },
+    //打开裁剪框
+    openCroper(){
+      var minCutL = Math.max(0, this.imgLeft)
+      var minCutT = Math.max(0, this.imgTop)
+      this.isCroper = true
+      this.cutW = 150
+      this.cutH = 100
+      this.cutL = minCutL
+      this.cutT = minCutT
+    },
+    //保存裁剪
+    competeCrop(){
+      var self=this
+      wepy.showLoading({
+        title: '截取中',
+        mask: true,
+      })
+      //图片截取大小
+      var sX = (self.cutL - self.imgLeft) * self.initRatio / self.oldScale
+      var sY = (self.cutT - self.imgTop) * self.initRatio / self.oldScale
+      var sW = self.cutW * self.initRatio /self.oldScale
+      var sH = self.cutH * self.initRatio / self.oldScale
+      self.isCroper = false
+      self.tempCanvasWidth = sW
+      self.tempCanvasHeight = sH
+
+      //真机疑似bug解决方法
+      if (sW < self.scaleWidth * self.initRatio/ self.oldScale / 2) {
+        sW *= 2
+        sH *= 2
+      }
+      var ctx = wx.createCanvasContext('tempCanvas')
+      ctx.drawImage(self.tempImageSrc, sX, sY, sW, sH, 0, 0, sW, sH)
+      ctx.draw()
+      //保存图片到临时路径
+      saveImgUseTempCanvas(self, 100, loadImgOnImage)
+    },
+    //取消裁剪
+    cancelCrop(){
+      this.isCroper = false
+    },
+  }
+}
+</script>
+<style lang="scss">
+@import './index.scss';
+</style>
