@@ -5,7 +5,7 @@
  * @LastEditTime: 2020-03-31 15:38:17
  * @Description: In User Settings Edit
  -->
-# 涂鸦工具
+# [wepy-dooya]涂鸦工具
 
 ### 开发框架
 [WePY](https://tencent.github.io/wepy/)
@@ -16,7 +16,7 @@
 > npm install
 
 # dev
-> wepy build --watch
+> wepy build --watch  / npm run dev
 
 # build
 > wepy build
